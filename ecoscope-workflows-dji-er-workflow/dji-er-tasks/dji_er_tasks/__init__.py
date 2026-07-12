@@ -1064,8 +1064,9 @@ def set_dji_api_key(
 
 @register(
     description=(
-        "The slug of your Flight Folio event type in EarthRanger. Blank = tracking-only "
-        "mode (GPS tracks posted, no Flight Folio events)."
+        "Recommended slug: uas_flight_folio (keep the default). Create this event type once "
+        "in ER Admin from schemas/uas_flight_folio_schema.json — see README. Leave blank for "
+        "tracking-only mode: GPS tracks posted, no Flight Folio events."
     )
 )
 def set_event_type_name(
@@ -1089,8 +1090,9 @@ def set_event_type_name(
 
 @register(
     description=(
-        "The slug of your UAS Imagery event type in EarthRanger. Blank = preview mode "
-        "(photos geolocated and shown on the map, nothing posted)."
+        "Recommended slug: uas_imagery (keep the default). Create this event type once in ER "
+        "Admin from schemas/uas_imagery_schema.json — see README. Leave blank for preview "
+        "mode: photos geolocated and shown on the map, nothing posted."
     )
 )
 def set_imagery_event_type(
@@ -1141,9 +1143,10 @@ def set_dem_path(
 
 @register(
     description=(
-        "The slug of an existing EarthRanger patrol type (blank = no patrols). Flights "
-        "are filed as patrols of this type, and photos are linked to the patrol whose "
-        "time range contains them."
+        "The slug of an existing EarthRanger patrol type — e.g. drone_patrol (create it in "
+        "ER Admin -> Activity -> Patrol types; it cannot be made via the API). Blank = no "
+        "patrols. Flights are filed as patrols of this type, and photos are linked to the "
+        "patrol whose time range contains them."
     )
 )
 def set_patrol_type(

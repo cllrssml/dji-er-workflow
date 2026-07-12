@@ -73,7 +73,7 @@
         }
       },
       "type": "object",
-      "description": "The slug of your Flight Folio event type in EarthRanger. Blank = tracking-only mode (GPS tracks posted, no Flight Folio events).",
+      "description": "Recommended slug: uas_flight_folio (keep the default). Create this event type once in ER Admin from schemas/uas_flight_folio_schema.json \u2014 see README. Leave blank for tracking-only mode: GPS tracks posted, no Flight Folio events.",
       "required": [],
       "title": "Flight Folio Event Type"
     },
@@ -168,7 +168,7 @@
         }
       },
       "type": "object",
-      "description": "The slug of your UAS Imagery event type in EarthRanger. Blank = preview mode (photos geolocated and shown on the map, nothing posted).",
+      "description": "Recommended slug: uas_imagery (keep the default). Create this event type once in ER Admin from schemas/uas_imagery_schema.json \u2014 see README. Leave blank for preview mode: photos geolocated and shown on the map, nothing posted.",
       "required": [],
       "title": "Imagery Event Type"
     },
@@ -212,7 +212,7 @@
         }
       },
       "type": "object",
-      "description": "The slug of an existing EarthRanger patrol type (blank = no patrols). Flights are filed as patrols of this type, and photos are linked to the patrol whose time range contains them.",
+      "description": "The slug of an existing EarthRanger patrol type \u2014 e.g. drone_patrol (create it in ER Admin -> Activity -> Patrol types; it cannot be made via the API). Blank = no patrols. Flights are filed as patrols of this type, and photos are linked to the patrol whose time range contains them.",
       "required": [],
       "title": "Patrol Type"
     }
