@@ -78,6 +78,7 @@ _FLIGHT_RESULTS_COLUMNS = [
     "max_dist_m",
     "total_distance_m",
     "firmware",
+    "compliance",
     "status",
     "patrol",
     "error",
@@ -254,6 +255,93 @@ def _write_kml(kml_text: str, aircraft_serial: str, takeoff_dt: datetime,
     kml_paths.append(str(kml_path))
 
 
+def _civil_twilight_utc(lat: float, lon: float, day) -> tuple | None:
+    """
+    Civil dawn/dusk (sun 6 deg below horizon) for a date at lat/lon, as UTC
+    datetimes. NOAA/Almanac sunrise algorithm with zenith 96 deg. Returns
+    (dawn, dusk) or None where the sun never crosses civil twilight (polar
+    summer/winter) — callers should skip the day/night check in that case.
+    """
+    import math
+
+    zenith = 96.0
+
+    def _event_ut(rising: bool) -> float | None:
+        n = day.timetuple().tm_yday
+        lng_hour = lon / 15.0
+        t = n + ((6 - lng_hour) / 24.0) if rising else n + ((18 - lng_hour) / 24.0)
+        m = (0.9856 * t) - 3.289
+        l = m + (1.916 * math.sin(math.radians(m))) + (0.020 * math.sin(math.radians(2 * m))) + 282.634
+        l %= 360.0
+        ra = math.degrees(math.atan(0.91764 * math.tan(math.radians(l)))) % 360.0
+        ra += (math.floor(l / 90.0) * 90.0) - (math.floor(ra / 90.0) * 90.0)
+        ra /= 15.0
+        sin_dec = 0.39782 * math.sin(math.radians(l))
+        cos_dec = math.cos(math.asin(sin_dec))
+        cos_h = (math.cos(math.radians(zenith)) - (sin_dec * math.sin(math.radians(lat)))) / (
+            cos_dec * math.cos(math.radians(lat))
+        )
+        if cos_h > 1.0 or cos_h < -1.0:
+            return None
+        h = (360.0 - math.degrees(math.acos(cos_h))) if rising else math.degrees(math.acos(cos_h))
+        h /= 15.0
+        t_local = h + ra - (0.06571 * t) - 6.622
+        return (t_local - lng_hour) % 24.0
+
+    dawn_ut = _event_ut(True)
+    dusk_ut = _event_ut(False)
+    if dawn_ut is None or dusk_ut is None:
+        return None
+    base = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+    dawn = base + timedelta(hours=dawn_ut)
+    dusk = base + timedelta(hours=dusk_ut)
+    if dusk < dawn:  # UT wrap (far-east/west longitudes)
+        dusk += timedelta(days=1)
+    return dawn, dusk
+
+
+def _is_night(dt: datetime, lat: float, lon: float) -> bool:
+    """True when dt (UTC) falls outside civil twilight at lat/lon."""
+    tw = _civil_twilight_utc(lat, lon, dt.date())
+    if tw is None:
+        return False
+    dawn, dusk = tw
+    return dt < dawn or dt > dusk
+
+
+def _load_boundary(boundary_file: str):
+    """
+    Load an approved-area polygon file into one shapely geometry (WGS-84),
+    buffered ~20 m outward so GPS noise on the fence line doesn't flag.
+    Raises ValueError with a clear message on any problem — boundary config
+    errors should stop the run up front, not mark every flight failed.
+    """
+    path = Path(boundary_file)
+    if not path.exists():
+        raise ValueError(f"Approved Area File not found: {boundary_file}")
+    try:
+        gdf = gpd.read_file(path)
+    except Exception as exc:
+        raise ValueError(
+            f"Approved Area File could not be read ({type(exc).__name__}: {exc}). "
+            "GeoJSON is the most portable format; KML needs a GDAL build with the "
+            "KML driver."
+        ) from exc
+    if gdf.empty:
+        raise ValueError("Approved Area File contains no features.")
+    if gdf.crs is not None and gdf.crs.to_epsg() != 4326:
+        gdf = gdf.to_crs(4326)
+    geoms = [g for g in gdf.geometry if g is not None and g.geom_type in
+             ("Polygon", "MultiPolygon")]
+    if not geoms:
+        raise ValueError(
+            "Approved Area File has no polygon features — supply the operating "
+            "area as one or more polygons."
+        )
+    from shapely.ops import unary_union
+    return unary_union(geoms).buffer(0.0002)  # ~20 m tolerance
+
+
 # ---------------------------------------------------------------------------
 # Flight-log ingestion loop (internal — called by ingest_mission)
 # ---------------------------------------------------------------------------
@@ -309,9 +397,60 @@ def _run_flights(
     else:
         event_type_uuid = None
 
-    _nof = ""
+    _nof = _rp = _obs = _site = _boundary_file = ""
+    _checks = False
+    _alt_limit = 121.9
     if isinstance(operational_defaults, dict):
         _nof = (operational_defaults.get("nature_of_flight") or "").strip()
+        _rp = (operational_defaults.get("remote_pilot") or "").strip()
+        _obs = (operational_defaults.get("ua_observer") or "").strip()
+        _site = (operational_defaults.get("operating_site") or "").strip()
+        _checks = bool(operational_defaults.get("checks_completed"))
+        try:
+            _alt_limit = float(operational_defaults.get("max_alt_limit_m", 121.9))
+        except (TypeError, ValueError):
+            _alt_limit = 121.9
+        _boundary_file = (operational_defaults.get("boundary_file") or "").strip()
+
+    # Approved-area polygon (optional). Config errors stop the run up front —
+    # a bad boundary path should not mark every flight failed one by one.
+    _boundary_prep = None
+    if _boundary_file:
+        from shapely.prepared import prep
+        _boundary_prep = prep(_load_boundary(_boundary_file))
+
+    # Prior folio history → cumulative carried-forward hours + folio sequence
+    # numbers (Annexure-A-style folios). One query up front; the per-serial
+    # accumulators advance as this run posts events so a multi-flight batch
+    # numbers correctly. Best-effort: if history can't be read, events post
+    # without folio_seq / carried-forward rather than failing the batch.
+    _prior_min: dict[str, float] = {}
+    _prior_count: dict[str, int] = {}
+    _folio_history_ok = False
+    if event_type_uuid:
+        try:
+            prior = client.get_events(
+                event_type=[event_type_uuid],
+                since=datetime(2000, 1, 1, tzinfo=timezone.utc).isoformat(),
+                until=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                include_details=True,
+            )
+            if not prior.empty:
+                for _, ev in prior.iterrows():
+                    d = ev.get("event_details") or {}
+                    if not isinstance(d, dict):
+                        continue
+                    sn = str(d.get("aircraft_serial") or "")
+                    if not sn:
+                        continue
+                    try:
+                        _prior_min[sn] = _prior_min.get(sn, 0.0) + float(d.get("flight_time_min") or 0.0)
+                    except (TypeError, ValueError):
+                        pass
+                    _prior_count[sn] = _prior_count.get(sn, 0) + 1
+            _folio_history_ok = True
+        except Exception:
+            _prior_min, _prior_count = {}, {}
 
     # Validate the patrol type slug once (patrol types are ER Admin-managed).
     _patrol_type = (patrol_type or "").strip() if isinstance(patrol_type, str) else ""
@@ -462,6 +601,28 @@ def _run_flights(
                     "flight_time_min": round(flight_time_s / 60, 1),
                     "track_color": _TRACK_PALETTE[len(out["track_rows"]) % len(_TRACK_PALETTE)],
                 })
+
+            # --- Compliance flags (report-only: results table + folio event; ---
+            # --- nothing is blocked, no alerts are sent)                     ---
+            flags: list[str] = []
+            if _alt_limit > 0 and max_alt_agl_m > _alt_limit:
+                flags.append(f"max alt {max_alt_agl_m:.1f} m > limit {_alt_limit:.1f} m")
+            if _valid_wgs84(ref_lat, ref_lon) and (
+                _is_night(takeoff_dt, ref_lat, ref_lon)
+                or _is_night(landing_dt, ref_lat, ref_lon)
+            ):
+                flags.append("night flight (outside civil twilight)")
+            if _boundary_prep is not None:
+                pts_outside = sum(
+                    1 for f in airborne_dec
+                    if _valid_wgs84(f["osd"]["latitude"], f["osd"]["longitude"])
+                    and not _boundary_prep.covers(
+                        Point(f["osd"]["longitude"], f["osd"]["latitude"])
+                    )
+                )
+                if pts_outside:
+                    flags.append(f"{pts_outside} track point(s) outside approved area")
+            compliance = "; ".join(flags) if flags else "ok"
 
             # get-or-create Subject (keyed on aircraft_serial)
             if aircraft_serial not in _subject_cache:
@@ -618,6 +779,7 @@ def _run_flights(
                 "max_dist_m":          round(max_dist_m, 1),
                 "total_distance_m":    round(total_dist_m_gps, 1),
                 "firmware":            firmware,
+                "compliance":          compliance,
                 "patrol":              patrol_status,
             }
 
@@ -675,9 +837,24 @@ def _run_flights(
                         "home_lat":              ref_lat,
                         "home_lon":              ref_lon,
                         "firmware":              firmware,
+                        "compliance_flags":      compliance,
                     }
                     if _nof:
                         event_details["nature_of_flight"] = _nof
+                    if _rp:
+                        event_details["remote_pilot"] = _rp
+                    if _obs:
+                        event_details["ua_observer"] = _obs
+                    if _site:
+                        event_details["journey_from"] = _site
+                        event_details["journey_to"] = _site
+                    if _checks:
+                        event_details["checks_completed"] = "yes"
+                    if _folio_history_ok:
+                        event_details["folio_seq"] = _prior_count.get(aircraft_serial, 0) + 1
+                        event_details["total_time_carried_forward_h"] = round(
+                            (_prior_min.get(aircraft_serial, 0.0) + flight_time_s / 60.0) / 60.0, 2
+                        )
                     event_payload = {
                         "event_type": event_type_name,
                         "time": takeoff_dt.isoformat(),
@@ -687,6 +864,11 @@ def _run_flights(
                     if patrol_segment_id:
                         event_payload["patrol_segments"] = [patrol_segment_id]
                     client.post_event(event_payload)
+                    if _folio_history_ok:
+                        _prior_count[aircraft_serial] = _prior_count.get(aircraft_serial, 0) + 1
+                        _prior_min[aircraft_serial] = (
+                            _prior_min.get(aircraft_serial, 0.0) + flight_time_s / 60.0
+                        )
 
                 if kml_text:
                     _write_kml(kml_text, aircraft_serial, takeoff_dt, results_dir, out["kml_paths"])
@@ -1278,8 +1460,12 @@ def set_decimation_rate(
 
 @register(
     description=(
-        "Operational settings applied to every flight in this batch. Leave Nature of Flight "
-        "blank for mixed batches — it can be set per-flight later in EarthRanger."
+        "Operational settings applied to every flight in this batch, filled into each "
+        "Flight Folio event so the folio record is complete (crew, site, checks). Leave "
+        "any field blank for mixed batches — blank fields stay unset and can be completed "
+        "per-flight in EarthRanger. Max Altitude Limit / Boundary File / night detection "
+        "only FLAG flights in the results table and folio event for review; nothing is "
+        "blocked and no alerts are sent."
     )
 )
 def set_operational_defaults(
@@ -1295,9 +1481,91 @@ def set_operational_defaults(
             default="",
         ),
     ] = "",
+    remote_pilot: Annotated[
+        str,
+        Field(
+            title="Remote Pilot",
+            description=(
+                "Remote Pilot name for every flight in this batch, recorded on each Flight "
+                "Folio event. Leave blank for multi-pilot batches and fill per-flight in "
+                "EarthRanger."
+            ),
+            default="",
+        ),
+    ] = "",
+    ua_observer: Annotated[
+        str,
+        Field(
+            title="UA Observer",
+            description=(
+                "UA Observer name for every flight in this batch (required crew for E-VLOS "
+                "operations), recorded on each Flight Folio event. Leave blank if no observer."
+            ),
+            default="",
+        ),
+    ] = "",
+    operating_site: Annotated[
+        str,
+        Field(
+            title="Operating Site",
+            description=(
+                "Site/place name for the folio's Journey From/To columns (drone flights start "
+                "and end at the same site), e.g. a farm or reserve name. Recorded on each "
+                "Flight Folio event; leave blank to fill per-flight in EarthRanger."
+            ),
+            default="",
+        ),
+    ] = "",
+    checks_completed: Annotated[
+        bool,
+        Field(
+            title="Pre/Post-Flight Checks Completed",
+            description=(
+                "Tick to record that the designed pre- and post-flight checklists were "
+                "completed for every flight in this batch. This is recorded on the folio "
+                "event; the Remote Pilot's signature on the printed folio remains the "
+                "formal certification."
+            ),
+            default=False,
+        ),
+    ] = False,
+    max_alt_limit_m: Annotated[
+        float,
+        Field(
+            title="Max Altitude Limit (m AGL)",
+            description=(
+                "Authorised height ceiling in metres AGL. Flights whose max altitude exceeds "
+                "it are FLAGGED in the results table and folio event for review (no alerts, "
+                "nothing is blocked). Default 121.9 m = the common 400 ft regulatory ceiling. "
+                "Set 0 to disable the check."
+            ),
+            default=121.9, ge=0.0,
+        ),
+    ] = 121.9,
+    boundary_file: Annotated[
+        str,
+        Field(
+            title="Approved Area File (optional)",
+            description=(
+                "Optional path to a polygon file of your approved operating area (GeoJSON "
+                "recommended; any format your GDAL build reads, e.g. GPKG/KML, also works). "
+                "Flights with track points outside it are FLAGGED for review. Leave blank "
+                "to skip the check."
+            ),
+            default="",
+        ),
+    ] = "",
 ) -> dict:
     """Bundle operational defaults into a dict for ingest_mission."""
-    return {"nature_of_flight": nature_of_flight}
+    return {
+        "nature_of_flight": nature_of_flight,
+        "remote_pilot": remote_pilot,
+        "ua_observer": ua_observer,
+        "operating_site": operating_site,
+        "checks_completed": checks_completed,
+        "max_alt_limit_m": max_alt_limit_m,
+        "boundary_file": boundary_file,
+    }
 
 
 @register(

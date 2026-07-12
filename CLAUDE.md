@@ -43,6 +43,39 @@ This realises the plan's intent (one workflow, both inputs optional, shared
 patrols) more reliably. Same-run photo→patrol linking is actually *stronger* here
 than the branch design would have given.
 
+## v0.3.0 — folio conformance + compliance flags (2026-07-12)
+
+Driven by the UASOC compliance map (`~/cfw-uasoc/COMPLIANCE-MAP.md` — CFW-private;
+check it before changing this workflow). All changes generic/public-safe:
+
+- `set_operational_defaults` grew 6 fields (all per-batch, blank = unset):
+  **Remote Pilot / UA Observer / Operating Site** (fill the folio event's existing
+  `remote_pilot`/`ua_observer`/`journey_from`+`journey_to` schema fields),
+  **Pre/Post-Flight Checks Completed** (bool → `checks_completed: "yes"` only when
+  ticked), **Max Altitude Limit (m AGL)** (default 121.9 = 400 ft, 0 disables),
+  **Approved Area File** (polygon path; GeoJSON safest — KML depends on GDAL driver).
+- **Compliance flags (report-only, NO alerts/auto-events — Sam's decision):**
+  `alt_exceedance` / night flight (NOAA civil-twilight calc `_civil_twilight_utc`,
+  zenith 96°, verified vs Barberton within minutes) / boundary excursion
+  (prepared-geometry `covers` on ~20 m-buffered union). Summary string in new
+  `compliance` results-table column + `compliance_flags` event field ("ok" if clean).
+- **Folio continuity:** one up-front `get_events(include_details=True)` of ALL prior
+  folio events builds per-serial accumulators → each new event gets `folio_seq` +
+  `total_time_carried_forward_h` (advanced in-run per post; skipped flights don't
+  increment — they're already in the prior sum). Best-effort: history fetch failure
+  posts events without these two fields rather than failing the batch.
+- Boundary config errors raise up front (ValueError) — a bad path must not mark
+  every flight failed one by one.
+- Schema `uas_flight_folio_schema.json` gained section-7 "Folio & Compliance"
+  (folio_seq, total_time_carried_forward_h, checks_completed, compliance_flags) —
+  **Sam must update the ER event type** for the new fields to display (they post
+  fine regardless; ER hides unknown detail keys).
+- VERSION.yaml manually set 0.3.0 (--update had bumped to 1.0.0 on schema change).
+- Verified: compile clean, pixi install, mock-io exit 0, new fields in compiled
+  rjsf.json, functional tests (defaults bundle / boundary covers+edge-buffer+error
+  paths / night flag) in the workflow's own pixi env. NOT yet live-verified: the
+  new event fields need a NEW flight ingest (existing flights all skip on re-run).
+
 ## Task chain
 
 `set_workflow_details` → `set_er_connection` →

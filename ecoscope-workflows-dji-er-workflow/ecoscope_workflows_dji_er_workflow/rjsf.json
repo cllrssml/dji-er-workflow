@@ -137,10 +137,41 @@
           ],
           "title": "Nature Of Flight",
           "type": "string"
+        },
+        "remote_pilot": {
+          "default": "",
+          "title": "Remote Pilot",
+          "type": "string"
+        },
+        "ua_observer": {
+          "default": "",
+          "title": "Ua Observer",
+          "type": "string"
+        },
+        "operating_site": {
+          "default": "",
+          "title": "Operating Site",
+          "type": "string"
+        },
+        "checks_completed": {
+          "default": false,
+          "title": "Checks Completed",
+          "type": "boolean"
+        },
+        "max_alt_limit_m": {
+          "default": 121.9,
+          "minimum": 0.0,
+          "title": "Max Alt Limit M",
+          "type": "number"
+        },
+        "boundary_file": {
+          "default": "",
+          "title": "Boundary File",
+          "type": "string"
         }
       },
       "type": "object",
-      "description": "Operational settings applied to every flight in this batch. Leave Nature of Flight blank for mixed batches \u2014 it can be set per-flight later in EarthRanger.",
+      "description": "Operational settings applied to every flight in this batch, filled into each Flight Folio event so the folio record is complete (crew, site, checks). Leave any field blank for mixed batches \u2014 blank fields stay unset and can be completed per-flight in EarthRanger. Max Altitude Limit / Boundary File / night detection only FLAG flights in the results table and folio event for review; nothing is blocked and no alerts are sent.",
       "required": [],
       "title": "Flight Defaults"
     },
@@ -245,6 +276,17 @@
         "subject_type",
         "subject_subtype",
         "source_type"
+      ]
+    },
+    "operational_defaults": {
+      "ui:order": [
+        "nature_of_flight",
+        "remote_pilot",
+        "ua_observer",
+        "operating_site",
+        "checks_completed",
+        "max_alt_limit_m",
+        "boundary_file"
       ]
     },
     "ui:order": [

@@ -87,7 +87,22 @@ activate via email → copy the ApiKey.
 | **Aircraft Identity** | Registration + ER subject/source type slugs. Only used with flight logs. |
 | **Track Decimation Rate** | GPS fixes/sec to post (default 1 Hz). |
 | **Nature of Flight** | Applied to all Flight Folio events this run (blank for mixed batches). |
+| **Remote Pilot / UA Observer / Operating Site** | Crew and site recorded on every Flight Folio event this run — completes the folio record. Blank = fill per-flight in EarthRanger. |
+| **Pre/Post-Flight Checks Completed** | Tick to record on each folio event that the designed checklists were completed. The pilot's signature on the printed folio remains the formal certification. |
+| **Max Altitude Limit (m AGL)** | Flights whose max altitude exceeds it are **flagged for review** in the results table and folio event (default 121.9 m = 400 ft; 0 disables). Report-only — nothing is blocked, no alerts. |
+| **Approved Area File** | Optional polygon file (GeoJSON recommended) of your authorised operating area; flights with track points outside it are flagged for review. Blank = skip. |
 | **Camera Clock UTC Offset** | Fallback only for photos with no GPS time. |
+
+### Flight-record (folio) completeness
+
+Each ingested flight's folio event now carries the full record an operator's
+flight folio typically requires: crew names, journey from/to, UTC times, flight
+time, battery % and serial, nature of flight, a **folio sequence number** and
+**cumulative airframe hours carried forward** (computed from all prior folio
+events for the same aircraft), plus **compliance flags** — `ok`, or notes for
+altitude-limit exceedance, night flight (outside civil twilight at the home
+point), and approved-area boundary excursions. Flags are informational: review
+and action them through your own safety process.
 
 ### Common runs
 

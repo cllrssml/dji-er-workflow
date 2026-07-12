@@ -33,7 +33,13 @@
     "rate_hz": 1
   },
   "operational_defaults": {
-    "nature_of_flight": ""
+    "nature_of_flight": "",
+    "remote_pilot": "",
+    "ua_observer": "",
+    "operating_site": "",
+    "checks_completed": false,
+    "max_alt_limit_m": 121.9,
+    "boundary_file": ""
   },
   "dem_path": {
     "dem_path": ""

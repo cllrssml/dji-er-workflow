@@ -164,6 +164,34 @@
         "title": "Home Point Longitude",
         "description": "",
         "type": "number"
+      },
+      "folio_seq": {
+        "deprecated": false,
+        "title": "Folio Sequence No.",
+        "description": "Sequential folio entry number for this aircraft, counted across all Flight Folio events.",
+        "minimum": 0,
+        "type": "number"
+      },
+      "total_time_carried_forward_h": {
+        "deprecated": false,
+        "title": "Total Time Carried Forward (h)",
+        "description": "Cumulative airframe hours including this flight, summed from all Flight Folio events for this aircraft.",
+        "minimum": 0,
+        "type": "number"
+      },
+      "checks_completed": {
+        "deprecated": false,
+        "title": "Pre/Post-Flight Checks Completed",
+        "default": "",
+        "description": "'yes' when the ingest run recorded that the designed pre- and post-flight checklists were completed. The Remote Pilot's signature on the printed folio remains the formal certification.",
+        "type": "string"
+      },
+      "compliance_flags": {
+        "deprecated": false,
+        "title": "Compliance Flags",
+        "default": "",
+        "description": "'ok', or review flags computed from the flight log (altitude limit, night flight, approved-area boundary). Informational — review and action via your safety process.",
+        "type": "string"
       }
     },
     "required": [],
@@ -328,6 +356,32 @@
         "parent": "section-6",
         "type": "NUMERIC",
         "placeholder": ""
+      },
+      "folio_seq": {
+        "conditionalDependents": [],
+        "parent": "section-7",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "total_time_carried_forward_h": {
+        "conditionalDependents": [],
+        "parent": "section-7",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "checks_completed": {
+        "conditionalDependents": [],
+        "parent": "section-7",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": "yes"
+      },
+      "compliance_flags": {
+        "conditionalDependents": [],
+        "parent": "section-7",
+        "type": "TEXT",
+        "inputType": "LONG_TEXT",
+        "placeholder": ""
       }
     },
     "headers": {},
@@ -337,7 +391,8 @@
       "section-3",
       "section-4",
       "section-5",
-      "section-6"
+      "section-6",
+      "section-7"
     ],
     "sections": {
       "section-1": {
@@ -420,6 +475,20 @@
         ],
         "rightColumn": [
           {"name": "home_lon", "type": "field"}
+        ]
+      },
+      "section-7": {
+        "columns": 2,
+        "conditions": [],
+        "isActive": true,
+        "label": "Folio & Compliance — auto-populated",
+        "leftColumn": [
+          {"name": "folio_seq", "type": "field"},
+          {"name": "checks_completed", "type": "field"}
+        ],
+        "rightColumn": [
+          {"name": "total_time_carried_forward_h", "type": "field"},
+          {"name": "compliance_flags", "type": "field"}
         ]
       }
     }
