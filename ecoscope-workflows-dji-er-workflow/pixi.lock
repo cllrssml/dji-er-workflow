@@ -14094,6 +14094,7 @@ packages:
   - rsa >=4.0.0,<5
   - python
   license: Apache-2.0
+  license_family: APACHE
   purls:
   - pkg:pypi/google-auth?source=hash-mapping
   run_exports: {}
@@ -14145,6 +14146,7 @@ packages:
   - protobuf >=3.20.2,<7.0.0
   - python
   license: Apache-2.0
+  license_family: APACHE
   purls:
   - pkg:pypi/google-cloud-storage?source=hash-mapping
   run_exports: {}
@@ -15396,6 +15398,7 @@ packages:
   - protobuf >=4.25.8,<8.0.0
   - python
   license: Apache-2.0
+  license_family: APACHE
   purls:
   - pkg:pypi/proto-plus?source=hash-mapping
   run_exports: {}
@@ -16107,6 +16110,7 @@ packages:
   - pytest >=8.0.0
   - python >=3.10,<4.0
   license: MIT
+  license_family: MIT
   run_exports: {}
   size: 50267
   timestamp: 1783799219157

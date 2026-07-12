@@ -19,16 +19,11 @@ workflow:
     id: er_client_name
     task: set_er_connection
 
-  # --- Inputs (either optional) -----------------------------------------------
+  # ===== FLIGHT LOGS (leave the folder blank to skip this half) ===============
   - name: Flight Logs Folder
     id: input_folder
     task: set_input_folder
 
-  - name: Photos Folder
-    id: photos_folder
-    task: set_photos_folder
-
-  # --- Flight-log options -----------------------------------------------------
   - name: DJI API Key
     id: dji_api_key
     task: set_dji_api_key
@@ -49,7 +44,11 @@ workflow:
     id: operational_defaults
     task: set_operational_defaults
 
-  # --- Imagery options --------------------------------------------------------
+  # ===== PHOTOS (leave the folder blank to skip this half) ====================
+  - name: Photos Folder
+    id: photos_folder
+    task: set_photos_folder
+
   - name: Imagery Event Type
     id: imagery_event_type
     task: set_imagery_event_type
@@ -62,7 +61,7 @@ workflow:
     id: time_defaults
     task: set_time_defaults
 
-  # --- Shared: patrol type ----------------------------------------------------
+  # ===== SHARED ===============================================================
   - name: Patrol Type
     id: patrol_type
     task: set_patrol_type

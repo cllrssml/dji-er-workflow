@@ -95,16 +95,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    photos_folder = (
-        task(set_photos_folder)
-        .validate()
-        .set_task_instance_id("photos_folder")
-        .handle_errors()
-        .with_tracing()
-        .partial(**(params.get("photos_folder") or {}))
-        .call()
-    )
-
     dji_api_key = (
         task(set_dji_api_key)
         .validate()
@@ -152,6 +142,16 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .handle_errors()
         .with_tracing()
         .partial(**(params.get("operational_defaults") or {}))
+        .call()
+    )
+
+    photos_folder = (
+        task(set_photos_folder)
+        .validate()
+        .set_task_instance_id("photos_folder")
+        .handle_errors()
+        .with_tracing()
+        .partial(**(params.get("photos_folder") or {}))
         .call()
     )
 

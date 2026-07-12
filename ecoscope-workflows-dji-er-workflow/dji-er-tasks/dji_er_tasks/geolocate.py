@@ -200,23 +200,25 @@ def raycast(
     coarse_step_m: float = 5.0,
 ) -> GroundTarget:
     """
-    March a ray from (lat, lon, alt_m) along azimuth_deg (0=N, clockwise),
-    descending at depression angle |pitch_deg| below horizontal, until it
-    first drops below the DEM surface; refine by bisection.
+    March a ray from (lat, lon, alt_m) along azimuth_deg (0=N, clockwise) at
+    signed elevation angle pitch_deg (DJI gimbal convention: 0 = horizontal,
+    negative = down, positive = up) until it meets the DEM surface; refine by
+    bisection.
 
-    pitch_deg uses the DJI gimbal convention (negative = down); its absolute
-    value is taken. Values <= ~1 degree of horizontal are rejected — such a
-    ray may never hit terrain, and grazing intersections are wildly inaccurate.
+    Downward rays hit the ground ahead. Level or upward rays hit rising terrain
+    (a hillside or mountain slope) if any lies in the DEM within max_range_m — so
+    a shot aimed at a slope is valid. A ray that never meets terrain (aimed above
+    the skyline over flat or falling ground) raises RaycastError rather than
+    inventing a target.
     """
-    theta = math.radians(abs(pitch_deg))
-    if theta > math.pi / 2:  # camera pitched past vertical: looking backwards
+    elev = math.radians(pitch_deg)
+    # Fold a past-vertical gimbal over the top and reverse the azimuth.
+    if elev > math.pi / 2:
         azimuth_deg += 180.0
-        theta = math.pi - theta
-    if theta < math.radians(1.0):
-        raise RaycastError(
-            f"Camera is within 1 degree of horizontal (pitch {pitch_deg}); "
-            "ray-terrain intersection is unreliable"
-        )
+        elev = math.pi - elev
+    elif elev < -math.pi / 2:
+        azimuth_deg += 180.0
+        elev = -math.pi - elev
     az = math.radians(azimuth_deg % 360.0)
 
     start_ground = dem.elevation(lat, lon)
@@ -229,15 +231,15 @@ def raycast(
         )
 
     # nadir shot: target is directly below
-    if math.isclose(theta, math.pi / 2, abs_tol=1e-9):
+    if math.isclose(elev, -math.pi / 2, abs_tol=1e-9):
         return GroundTarget(lat, lon, start_ground, alt_m - start_ground, alt_m)
 
-    sin_t, cos_t = math.sin(theta), math.cos(theta)
+    sin_e, cos_e = math.sin(elev), math.cos(elev)
 
     def point_at(s: float) -> tuple[float, float, float]:
-        """Position and ray height after s metres of slant travel."""
-        plat, plon = _step(lat, lon, s * cos_t, az)
-        return plat, plon, alt_m - s * sin_t
+        """Position and ray height after s metres of slant travel (signed climb)."""
+        plat, plon = _step(lat, lon, s * cos_e, az)
+        return plat, plon, alt_m + s * sin_e
 
     # coarse march: find first step where the ray is at/below terrain
     prev_s = 0.0
@@ -257,8 +259,8 @@ def raycast(
         s += coarse_step_m
     if hit_s is None:
         raise RaycastError(
-            f"No terrain intersection within {max_range_m:.0f} m — "
-            "camera too close to horizontal or max_range_m too small"
+            f"No terrain intersection within {max_range_m:.0f} m — the camera was "
+            "aimed above the skyline (at sky/horizon over flat or falling ground)"
         )
 
     # bisection refine between the last above-ground and first below-ground step

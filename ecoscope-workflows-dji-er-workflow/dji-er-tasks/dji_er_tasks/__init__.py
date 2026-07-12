@@ -25,13 +25,15 @@ pull individual components from its MissionResult bundle.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from math import atan2, cos, radians, sin, sqrt
+from math import atan2, ceil, cos, floor, radians, sin, sqrt
 from pathlib import Path
 from typing import Annotated, Any, Literal
 from urllib.parse import urlparse
@@ -576,17 +578,23 @@ def _run_flights(
                     out["run_patrols"].append((takeoff_dt, landing_dt, patrol_segment_id))
 
                 # Attach a pre-existing event to the patrol (merge, don't replace).
+                # Best-effort: on a plain re-run the event is already linked, and
+                # some erclient versions 404 on the raw event GET — never fail an
+                # already-ingested flight over a re-link.
                 if patrol_segment_id and has_event and matched_event_id:
-                    ev_data = client._get(f"activity/event/{matched_event_id}")
-                    linked = [
-                        str(s.get("id")) if isinstance(s, dict) else str(s)
-                        for s in (ev_data.get("patrol_segments") or [])
-                    ]
-                    if patrol_segment_id not in linked:
-                        client.patch_event(
-                            matched_event_id,
-                            {"patrol_segments": linked + [patrol_segment_id]},
-                        )
+                    try:
+                        ev_data = client._get(f"activity/event/{matched_event_id}")
+                        linked = [
+                            str(s.get("id")) if isinstance(s, dict) else str(s)
+                            for s in (ev_data.get("patrol_segments") or [])
+                        ]
+                        if patrol_segment_id not in linked:
+                            client.patch_event(
+                                matched_event_id,
+                                {"patrol_segments": linked + [patrol_segment_id]},
+                            )
+                    except Exception:
+                        pass
 
             fully_done = has_observations and (not event_type_uuid or has_event)
 
@@ -795,8 +803,23 @@ def _run_photos(
                 [(pose.lat, pose.lon) for _, pose, _ in candidates],
                 margin_m=_MAX_RANGE_M,
             )
-            dem_dir = results_dir / "dem"
-            dem_file = fetch_dem(bbox, dem_dir / "auto_dem.tif")
+            # Round the box outward to 0.1 deg so repeat runs over the same area
+            # reuse one cached DEM instead of re-downloading it every run.
+            rb = (floor(bbox[0] * 10) / 10, floor(bbox[1] * 10) / 10,
+                  ceil(bbox[2] * 10) / 10, ceil(bbox[3] * 10) / 10)
+            key = hashlib.md5(repr(rb).encode()).hexdigest()[:12]
+            cache_dir = Path(tempfile.gettempdir()) / "dji_er_dem_cache"
+            cached = cache_dir / f"dem_{key}.tif"
+            if cached.exists() and cached.stat().st_size > 0:
+                dem_file = str(cached)
+            else:
+                dem_file = fetch_dem(rb, cached)
+            # Keep a copy in this run's results folder for provenance.
+            try:
+                (results_dir / "dem").mkdir(parents=True, exist_ok=True)
+                shutil.copy2(dem_file, results_dir / "dem" / "auto_dem.tif")
+            except Exception:
+                pass
         dem = Dem(dem_file)
     except Exception as exc:
         # DEM unavailable — every located candidate fails, but the run continues
@@ -874,6 +897,7 @@ def _run_photos(
                             break
                 if has_event:
                     row["status"] = "skipped"
+                    row["error"] = "already in EarthRanger (same photo + time)"
                     out["n_skipped"] += 1
                     out["rows"].append(row)
                     continue
