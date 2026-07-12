@@ -96,16 +96,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
-    input_folder = (
-        task(set_input_folder)
-        .validate()
-        .set_task_instance_id("input_folder")
-        .handle_errors()
-        .with_tracing()
-        .partial(**(params.get("input_folder") or {}))
-        .call()
-    )
-
     dji_api_key = (
         task(set_dji_api_key)
         .validate()
@@ -113,6 +103,16 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .handle_errors()
         .with_tracing()
         .partial(**(params.get("dji_api_key") or {}))
+        .call()
+    )
+
+    input_folder = (
+        task(set_input_folder)
+        .validate()
+        .set_task_instance_id("input_folder")
+        .handle_errors()
+        .with_tracing()
+        .partial(**(params.get("input_folder") or {}))
         .call()
     )
 

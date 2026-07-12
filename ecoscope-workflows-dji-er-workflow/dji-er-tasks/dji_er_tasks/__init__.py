@@ -1074,10 +1074,11 @@ def set_event_type_name(
         Field(
             title="Flight Folio Event Type",
             description=(
-                "The EarthRanger event type slug for UAS Flight Folio records (the "
-                "lowercase-underscore identifier in ER Admin -> Event Types -> value column, "
-                "not the display name). Example: 'uas_flight_folio'. Leave blank for "
-                "tracking-only mode — GPS tracks are posted but no Flight Folio events."
+                "Recommended slug: uas_flight_folio — create this event type once in ER "
+                "Admin from schemas/uas_flight_folio_schema.json (see README), then keep this "
+                "default. It is the lowercase-underscore 'value' in ER Admin -> Event Types "
+                "(not the display name). Leave blank for tracking-only mode: GPS tracks are "
+                "posted but no Flight Folio events."
             ),
             default="uas_flight_folio",
         ),
@@ -1098,11 +1099,11 @@ def set_imagery_event_type(
         Field(
             title="Imagery Event Type",
             description=(
-                "The EarthRanger event type slug for UAS Imagery records (ER Admin -> Event "
-                "Types -> value column). Example: 'uas_imagery'. Create it once from the "
-                "template in the repository README. Leave blank for preview mode — photos are "
-                "geolocated and appear on the dashboard map, but no events are posted. Useful "
-                "for checking geolocation quality before committing data."
+                "Recommended slug: uas_imagery — create this event type once in ER Admin from "
+                "schemas/uas_imagery_schema.json (see README), then keep this default. It is "
+                "the lowercase-underscore 'value' in ER Admin -> Event Types (not the display "
+                "name). Leave blank for preview mode: photos are geolocated and shown on the "
+                "map but nothing is posted — handy to check geolocation before writing."
             ),
             default="uas_imagery",
         ),

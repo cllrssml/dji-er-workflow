@@ -14,19 +14,19 @@ workflow:
     id: workflow_details
     task: set_workflow_details
 
-  # --- EarthRanger connection -------------------------------------------------
+  # --- Connections & keys (set once, rarely changed) --------------------------
   - name: Data Source
     id: er_client_name
     task: set_er_connection
+
+  - name: DJI API Key
+    id: dji_api_key
+    task: set_dji_api_key
 
   # ===== FLIGHT LOGS (leave the folder blank to skip this half) ===============
   - name: Flight Logs Folder
     id: input_folder
     task: set_input_folder
-
-  - name: DJI API Key
-    id: dji_api_key
-    task: set_dji_api_key
 
   - name: Flight Folio Event Type
     id: event_type_name

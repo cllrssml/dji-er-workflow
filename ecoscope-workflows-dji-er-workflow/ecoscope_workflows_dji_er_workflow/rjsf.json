@@ -35,20 +35,6 @@
       "type": "object",
       "title": "Data Source"
     },
-    "input_folder": {
-      "additionalProperties": false,
-      "properties": {
-        "folder_path": {
-          "default": "",
-          "title": "Folder Path",
-          "type": "string"
-        }
-      },
-      "type": "object",
-      "description": "Full path to the folder of DJI .txt flight logs (blank = skip flight-log ingestion). Copy the logs folder off your DJI controller via USB and paste the path here.",
-      "required": [],
-      "title": "Flight Logs Folder"
-    },
     "dji_api_key": {
       "additionalProperties": false,
       "properties": {
@@ -62,6 +48,20 @@
       "description": "Your DJI developer key, used to decrypt .txt flight logs (only needed when a Flight Logs Folder is set). Get one free at developer.dji.com (create an Open API app, activate via email, copy the ApiKey).",
       "required": [],
       "title": "DJI API Key"
+    },
+    "input_folder": {
+      "additionalProperties": false,
+      "properties": {
+        "folder_path": {
+          "default": "",
+          "title": "Folder Path",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Full path to the folder of DJI .txt flight logs (blank = skip flight-log ingestion). Copy the logs folder off your DJI controller via USB and paste the path here.",
+      "required": [],
+      "title": "Flight Logs Folder"
     },
     "event_type_name": {
       "additionalProperties": false,
@@ -250,8 +250,8 @@
     "ui:order": [
       "workflow_details",
       "er_client_name",
-      "input_folder",
       "dji_api_key",
+      "input_folder",
       "event_type_name",
       "aircraft_identity",
       "decimation_rate",
