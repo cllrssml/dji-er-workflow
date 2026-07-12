@@ -1,0 +1,13 @@
+# Compiled workflow env (large, platform-specific — never commit; Desktop rebuilds it)
+ecoscope-workflows-*-workflow/.pixi/
+**/__pycache__/
+*.pyc
+.env
+
+# DEMs are data, not code (auto-fetched at runtime; local overrides stay local)
+*.tif
+dem/
+
+# Local run outputs / scratch
+results/
+*.local.json

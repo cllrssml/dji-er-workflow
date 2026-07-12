@@ -1,0 +1,427 @@
+{
+  "json": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "aircraft_serial": {
+        "deprecated": false,
+        "title": "Aircraft Serial",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "aircraft_registration": {
+        "deprecated": false,
+        "title": "Aircraft Registration",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "flight_key": {
+        "deprecated": false,
+        "title": "Flight Key",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "flight_date": {
+        "deprecated": false,
+        "title": "Flight Date",
+        "description": "",
+        "format": "date",
+        "type": "string"
+      },
+      "start_time_utc": {
+        "deprecated": false,
+        "title": "Start Time (UTC)",
+        "description": "",
+        "format": "date-time",
+        "type": "string"
+      },
+      "flight_time_min": {
+        "deprecated": false,
+        "title": "Flight Duration (min)",
+        "description": "",
+        "type": "number"
+      },
+      "end_time_utc": {
+        "deprecated": false,
+        "title": "End Time (UTC)",
+        "description": "",
+        "format": "date-time",
+        "type": "string"
+      },
+      "battery_pct_takeoff": {
+        "deprecated": false,
+        "title": "Battery % at Takeoff",
+        "description": "",
+        "maximum": 100,
+        "minimum": 0,
+        "type": "number"
+      },
+      "battery_serial": {
+        "deprecated": false,
+        "title": "Battery Serial",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "battery_pct_landing": {
+        "deprecated": false,
+        "title": "Battery % at Landing",
+        "description": "",
+        "maximum": 100,
+        "minimum": 0,
+        "type": "number"
+      },
+      "max_alt_agl_m": {
+        "deprecated": false,
+        "title": "Max Altitude AGL (m)",
+        "description": "",
+        "minimum": 0,
+        "type": "number"
+      },
+      "max_dist_m": {
+        "deprecated": false,
+        "title": "Max Distance from Home (m)",
+        "description": "",
+        "type": "number"
+      },
+      "max_speed_ms": {
+        "deprecated": false,
+        "title": "Max Speed (m/s)",
+        "description": "",
+        "minimum": 0,
+        "type": "number"
+      },
+      "total_distance_m": {
+        "deprecated": false,
+        "title": "Total Distance (m)",
+        "description": "",
+        "minimum": 0,
+        "type": "number"
+      },
+      "journey_from": {
+        "deprecated": false,
+        "title": "Journey From",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "nature_of_flight": {
+        "deprecated": false,
+        "title": "Nature of Flight",
+        "description": "Optional dropdown — requires a 'nature_of_flight' choice list in your ER instance. Replace with a plain string field if not needed.",
+        "anyOf": [
+          {
+            "$ref": "/api/v2.0/schemas/choices.json?field=nature_of_flight"
+          }
+        ],
+        "type": "string"
+      },
+      "ua_observer": {
+        "deprecated": false,
+        "title": "UA Observer",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "journey_to": {
+        "deprecated": false,
+        "title": "Journey To",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "remote_pilot": {
+        "deprecated": false,
+        "title": "Remote Pilot",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "defects": {
+        "deprecated": false,
+        "title": "Defects",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "home_lat": {
+        "deprecated": false,
+        "title": "Home Point Latitude",
+        "description": "",
+        "type": "number"
+      },
+      "firmware": {
+        "deprecated": false,
+        "title": "Firmware Version",
+        "default": "",
+        "description": "Populated from the DJI Fly app version in the log, not the drone firmware version.",
+        "type": "string"
+      },
+      "home_lon": {
+        "deprecated": false,
+        "title": "Home Point Longitude",
+        "description": "",
+        "type": "number"
+      }
+    },
+    "required": [],
+    "type": "object",
+    "unevaluatedProperties": false
+  },
+  "ui": {
+    "fields": {
+      "aircraft_serial": {
+        "conditionalDependents": [],
+        "parent": "section-1",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "aircraft_registration": {
+        "conditionalDependents": [],
+        "parent": "section-1",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "flight_key": {
+        "conditionalDependents": [],
+        "parent": "section-1",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "flight_date": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "DATE_TIME"
+      },
+      "start_time_utc": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "DATE_TIME"
+      },
+      "flight_time_min": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "end_time_utc": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "DATE_TIME"
+      },
+      "battery_pct_takeoff": {
+        "conditionalDependents": [],
+        "parent": "section-3",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "battery_serial": {
+        "conditionalDependents": [],
+        "parent": "section-3",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "battery_pct_landing": {
+        "conditionalDependents": [],
+        "parent": "section-3",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "max_alt_agl_m": {
+        "conditionalDependents": [],
+        "parent": "section-4",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "max_dist_m": {
+        "conditionalDependents": [],
+        "parent": "section-4",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "max_speed_ms": {
+        "conditionalDependents": [],
+        "parent": "section-4",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "total_distance_m": {
+        "conditionalDependents": [],
+        "parent": "section-4",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "journey_from": {
+        "conditionalDependents": [],
+        "parent": "section-5",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": "Operational place name"
+      },
+      "nature_of_flight": {
+        "conditionalDependents": [],
+        "parent": "section-5",
+        "type": "CHOICE_LIST",
+        "choices": {
+          "eventTypeCategories": [],
+          "existingChoiceList": [
+            "nature_of_flight"
+          ],
+          "featureCategories": [],
+          "myDataType": "EVENT_TYPES_FROM_EVENT_CATEGORY",
+          "subjectGroups": [],
+          "subjectSubtypes": [],
+          "type": "EXISTING_CHOICE_LIST"
+        },
+        "inputType": "DROPDOWN",
+        "placeholder": ""
+      },
+      "ua_observer": {
+        "conditionalDependents": [],
+        "parent": "section-5",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "journey_to": {
+        "conditionalDependents": [],
+        "parent": "section-5",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": "Operational place name"
+      },
+      "remote_pilot": {
+        "conditionalDependents": [],
+        "parent": "section-5",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "defects": {
+        "conditionalDependents": [],
+        "parent": "section-5",
+        "type": "TEXT",
+        "inputType": "LONG_TEXT",
+        "placeholder": ""
+      },
+      "home_lat": {
+        "conditionalDependents": [],
+        "parent": "section-6",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "firmware": {
+        "conditionalDependents": [],
+        "parent": "section-6",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "home_lon": {
+        "conditionalDependents": [],
+        "parent": "section-6",
+        "type": "NUMERIC",
+        "placeholder": ""
+      }
+    },
+    "headers": {},
+    "order": [
+      "section-1",
+      "section-2",
+      "section-3",
+      "section-4",
+      "section-5",
+      "section-6"
+    ],
+    "sections": {
+      "section-1": {
+        "columns": 1,
+        "conditions": [],
+        "isActive": true,
+        "label": "Flight Identity — auto-populated",
+        "leftColumn": [
+          {"name": "aircraft_serial", "type": "field"},
+          {"name": "aircraft_registration", "type": "field"},
+          {"name": "flight_key", "type": "field"}
+        ],
+        "rightColumn": []
+      },
+      "section-2": {
+        "columns": 2,
+        "conditions": [],
+        "isActive": true,
+        "label": "Timing — auto-populated",
+        "leftColumn": [
+          {"name": "flight_date", "type": "field"},
+          {"name": "start_time_utc", "type": "field"}
+        ],
+        "rightColumn": [
+          {"name": "flight_time_min", "type": "field"},
+          {"name": "end_time_utc", "type": "field"}
+        ]
+      },
+      "section-3": {
+        "columns": 2,
+        "conditions": [],
+        "isActive": true,
+        "label": "Battery — auto-populated",
+        "leftColumn": [
+          {"name": "battery_pct_takeoff", "type": "field"},
+          {"name": "battery_serial", "type": "field"}
+        ],
+        "rightColumn": [
+          {"name": "battery_pct_landing", "type": "field"}
+        ]
+      },
+      "section-4": {
+        "columns": 2,
+        "conditions": [],
+        "isActive": true,
+        "label": "Performance Envelope — auto-populated",
+        "leftColumn": [
+          {"name": "max_alt_agl_m", "type": "field"},
+          {"name": "max_dist_m", "type": "field"}
+        ],
+        "rightColumn": [
+          {"name": "max_speed_ms", "type": "field"},
+          {"name": "total_distance_m", "type": "field"}
+        ]
+      },
+      "section-5": {
+        "columns": 2,
+        "conditions": [],
+        "isActive": true,
+        "label": "Operational — complete manually after each flight",
+        "leftColumn": [
+          {"name": "journey_from", "type": "field"},
+          {"name": "nature_of_flight", "type": "field"},
+          {"name": "ua_observer", "type": "field"}
+        ],
+        "rightColumn": [
+          {"name": "journey_to", "type": "field"},
+          {"name": "remote_pilot", "type": "field"},
+          {"name": "defects", "type": "field"}
+        ]
+      },
+      "section-6": {
+        "columns": 2,
+        "conditions": [],
+        "isActive": true,
+        "label": "Technical — auto-populated",
+        "leftColumn": [
+          {"name": "home_lat", "type": "field"},
+          {"name": "firmware", "type": "field"}
+        ],
+        "rightColumn": [
+          {"name": "home_lon", "type": "field"}
+        ]
+      }
+    }
+  }
+}

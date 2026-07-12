@@ -1,0 +1,47 @@
+{
+  "workflow_details": {
+    "name": "DJI to EarthRanger",
+    "description": "Ingest DJI flight logs and geolocated drone photos into EarthRanger"
+  },
+  "er_client_name": {
+    "data_source": {
+      "name": "<your-data-source>"
+    }
+  },
+  "input_folder": {
+    "folder_path": "C:\\Users\\you\\Documents\\FlightLogs"
+  },
+  "photos_folder": {
+    "folder_path": "C:\\Users\\you\\Pictures\\DronePhotos"
+  },
+  "dji_api_key": {
+    "dji_api_key": "<your-dji-api-key>"
+  },
+  "event_type_name": {
+    "event_type_name": "uas_flight_folio"
+  },
+  "imagery_event_type": {
+    "event_type_name": "uas_imagery"
+  },
+  "aircraft_identity": {
+    "registration": "ZT-000001",
+    "subject_type": "aircraft",
+    "subject_subtype": "drone_quadcopter",
+    "source_type": "tracking-device"
+  },
+  "decimation_rate": {
+    "rate_hz": 1
+  },
+  "operational_defaults": {
+    "nature_of_flight": ""
+  },
+  "dem_path": {
+    "dem_path": ""
+  },
+  "patrol_type": {
+    "patrol_type": "drone_patrol"
+  },
+  "time_defaults": {
+    "utc_offset_hours": 2.0
+  }
+}

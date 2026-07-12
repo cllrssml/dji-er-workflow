@@ -1,0 +1,517 @@
+id: dji_er
+
+requirements:
+  - name: "ecoscope-platform"
+    version: ">=2.11.3,<3"
+    channel: "https://repo.prefix.dev/ecoscope-workflows/"
+  - name: "dji-er-tasks"
+    path: "/home/sam/Ecoscope_Projects/dji-er-tasks"
+    editable: true
+
+workflow:
+  # --- Metadata ---------------------------------------------------------------
+  - name: Workflow Details
+    id: workflow_details
+    task: set_workflow_details
+
+  # --- EarthRanger connection -------------------------------------------------
+  - name: Data Source
+    id: er_client_name
+    task: set_er_connection
+
+  # --- Inputs (either optional) -----------------------------------------------
+  - name: Flight Logs Folder
+    id: input_folder
+    task: set_input_folder
+
+  - name: Photos Folder
+    id: photos_folder
+    task: set_photos_folder
+
+  # --- Flight-log options -----------------------------------------------------
+  - name: DJI API Key
+    id: dji_api_key
+    task: set_dji_api_key
+
+  - name: Flight Folio Event Type
+    id: event_type_name
+    task: set_event_type_name
+
+  - name: Aircraft Identity
+    id: aircraft_identity
+    task: set_aircraft_identity
+
+  - name: Track Decimation Rate
+    id: decimation_rate
+    task: set_decimation_rate
+
+  - name: Flight Defaults
+    id: operational_defaults
+    task: set_operational_defaults
+
+  # --- Imagery options --------------------------------------------------------
+  - name: Imagery Event Type
+    id: imagery_event_type
+    task: set_imagery_event_type
+
+  - name: DEM File
+    id: dem_path
+    task: set_dem_path
+
+  - name: Time Defaults
+    id: time_defaults
+    task: set_time_defaults
+
+  # --- Shared: patrol type ----------------------------------------------------
+  - name: Patrol Type
+    id: patrol_type
+    task: set_patrol_type
+
+  # --- Main ingestion ---------------------------------------------------------
+  # One task handles both halves. A blank folder skips that half internally, so
+  # no branch skip conditions are needed here. Flights are ingested before photos
+  # so photos link to patrols created in the same run.
+  - name: Ingest Mission
+    id: mission_result
+    task: ingest_mission
+    partial:
+      client: ${{ workflow.er_client_name.return }}
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      input_folder: ${{ workflow.input_folder.return }}
+      photos_folder: ${{ workflow.photos_folder.return }}
+      dji_api_key: ${{ workflow.dji_api_key.return }}
+      event_type_name: ${{ workflow.event_type_name.return }}
+      imagery_event_type: ${{ workflow.imagery_event_type.return }}
+      aircraft_identity: ${{ workflow.aircraft_identity.return }}
+      decimation_rate: ${{ workflow.decimation_rate.return }}
+      operational_defaults: ${{ workflow.operational_defaults.return }}
+      dem_path: ${{ workflow.dem_path.return }}
+      patrol_type: ${{ workflow.patrol_type.return }}
+      utc_offset_hours: ${{ workflow.time_defaults.return }}
+
+  # --- Accessors --------------------------------------------------------------
+  - name: Track GeoDataFrame
+    id: track_gdf
+    task: extract_track_gdf
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Targets GeoDataFrame
+    id: targets_gdf
+    task: extract_targets_gdf
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Drone GeoDataFrame
+    id: drone_gdf
+    task: extract_drone_gdf
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Sightline GeoDataFrame
+    id: sightline_gdf
+    task: extract_sightline_gdf
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Flight Results DataFrame
+    id: flight_results_df
+    task: extract_flight_results_df
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Photo Results DataFrame
+    id: photo_results_df
+    task: extract_photo_results_df
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  # --- Map layers (each skips itself when its GeoDataFrame is empty) -----------
+  - name: Track Layer
+    id: track_layer
+    task: create_polyline_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+    partial:
+      geodataframe: ${{ workflow.track_gdf.return }}
+      tooltip_columns:
+        - aircraft_serial
+        - takeoff_utc
+        - flight_time_min
+      legend: ~
+      layer_style:
+        color_column: "track_color"
+        get_width: 3
+        width_units: pixels
+        cap_rounded: true
+
+  - name: Sightline Layer
+    id: sightline_layer
+    task: create_polyline_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+    partial:
+      geodataframe: ${{ workflow.sightline_gdf.return }}
+      tooltip_columns:
+        - Photo
+        - Distance (m)
+      legend:
+        labels:
+          - "Line of sight"
+        colors:
+          - "#ffffff"
+      layer_style:
+        get_color: "#ffffff"
+        get_width: 2
+        opacity: 0.6
+
+  - name: Drone Layer
+    id: drone_layer
+    task: create_point_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+    partial:
+      geodataframe: ${{ workflow.drone_gdf.return }}
+      tooltip_columns:
+        - Photo
+        - Time (UTC)
+        - Aircraft
+        - Height above takeoff (m)
+        - Camera heading (deg)
+        - Camera tilt (deg)
+      legend:
+        labels:
+          - "Drone — where the photo was taken from"
+        colors:
+          - "#377eb8"
+      layer_style:
+        get_radius: 5
+        radius_units: pixels
+        get_fill_color: "#377eb8"
+
+  - name: Target Layer
+    id: target_layer
+    task: create_point_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+    partial:
+      geodataframe: ${{ workflow.targets_gdf.return }}
+      tooltip_columns:
+        - Photo
+        - Time (UTC)
+        - Distance from drone (m)
+        - Ground elevation (m)
+      legend:
+        labels:
+          - "Target — where the camera was aimed"
+        colors:
+          - "#e41a1c"
+      layer_style:
+        get_radius: 6
+        radius_units: pixels
+        get_fill_color: "#e41a1c"
+
+  # --- Combine present layers into one geo_layers list ------------------------
+  # combine_map_layers handles SkipSentinels itself — do NOT add
+  # any_dependency_skipped here or an empty branch would skip the whole map.
+  - name: Combine Layers
+    id: combined_layers
+    task: combine_mission_layers
+    partial:
+      track_layer: ${{ workflow.track_layer.return }}
+      sightline_layer: ${{ workflow.sightline_layer.return }}
+      drone_layer: ${{ workflow.drone_layer.return }}
+      target_layer: ${{ workflow.target_layer.return }}
+
+  # --- Draw map (satellite basemap) -------------------------------------------
+  - name: Mission Map
+    id: mission_map
+    task: draw_ecomap
+    partial:
+      title: null
+      tile_layers:
+        - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          opacity: 1.0
+          max_zoom: 20
+          min_zoom: 0
+      north_arrow_style:
+        placement: top-left
+      legend_style:
+        placement: bottom-right
+      static: false
+      max_zoom: 20
+      geo_layers: ${{ workflow.combined_layers.return }}
+
+  - name: Persist Map
+    id: mission_map_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_suffix: mission_map
+      text: ${{ workflow.mission_map.return }}
+
+  # --- Flight status table ----------------------------------------------------
+  - name: Flight Status Table
+    id: flight_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.flight_results_df.return }}
+      widget_id: "Flight Status"
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      columns:
+        - file
+        - aircraft_serial
+        - takeoff_utc
+        - flight_time_min
+        - battery_pct_takeoff
+        - battery_pct_landing
+        - battery_serial
+        - max_alt_agl_m
+        - max_speed_ms
+        - max_dist_m
+        - total_distance_m
+        - firmware
+        - status
+        - patrol
+        - error
+
+  - name: Persist Flight Table
+    id: flight_table_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_suffix: flight_status
+      text: ${{ workflow.flight_table_html.return }}
+
+  # --- Photo status table -----------------------------------------------------
+  - name: Photo Status Table
+    id: photo_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.photo_results_df.return }}
+      widget_id: "Photo Status"
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: true
+        hide_header: false
+      columns:
+        - file
+        - time_utc
+        - status
+        - target_lat
+        - target_lon
+        - slant_range_m
+        - camera_alt_m
+        - patrol
+        - error
+
+  - name: Persist Photo Table
+    id: photo_table_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_suffix: photo_status
+      text: ${{ workflow.photo_table_html.return }}
+
+  # --- Stats: flights ---------------------------------------------------------
+  - name: Stat - Ingested
+    id: stat_ingested
+    task: count_ingested
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Skipped
+    id: stat_skipped
+    task: count_skipped
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Failed
+    id: stat_failed
+    task: count_failed
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Flight Time
+    id: stat_flight_time
+    task: format_total_flight_time
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Distance
+    id: stat_distance
+    task: format_total_distance
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Aircraft
+    id: stat_aircraft
+    task: count_aircraft
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  # --- Stats: photos ----------------------------------------------------------
+  - name: Stat - Posted
+    id: stat_posted
+    task: count_posted
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Located
+    id: stat_located
+    task: count_located
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Photo Skipped
+    id: stat_photo_skipped
+    task: count_photo_skipped
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  - name: Stat - Photo Failed
+    id: stat_photo_failed
+    task: count_photo_failed
+    partial:
+      mission_result: ${{ workflow.mission_result.return }}
+
+  # --- Score-card widgets -----------------------------------------------------
+  - name: Widget - Ingested
+    id: widget_ingested
+    task: create_single_value_widget_single_view
+    partial:
+      title: Ingested
+      data: ${{ workflow.stat_ingested.return }}
+      decimal_places: 0
+
+  - name: Widget - Skipped
+    id: widget_skipped
+    task: create_single_value_widget_single_view
+    partial:
+      title: Skipped
+      data: ${{ workflow.stat_skipped.return }}
+      decimal_places: 0
+
+  - name: Widget - Failed
+    id: widget_failed
+    task: create_single_value_widget_single_view
+    partial:
+      title: Failed
+      data: ${{ workflow.stat_failed.return }}
+      decimal_places: 0
+
+  - name: Widget - Flight Time
+    id: widget_flight_time
+    task: create_text_widget_single_view
+    partial:
+      title: Flown
+      data: ${{ workflow.stat_flight_time.return }}
+
+  - name: Widget - Distance
+    id: widget_distance
+    task: create_text_widget_single_view
+    partial:
+      title: Distance
+      data: ${{ workflow.stat_distance.return }}
+
+  - name: Widget - Aircraft
+    id: widget_aircraft
+    task: create_single_value_widget_single_view
+    partial:
+      title: Aircraft
+      data: ${{ workflow.stat_aircraft.return }}
+      decimal_places: 0
+
+  - name: Widget - Posted
+    id: widget_posted
+    task: create_single_value_widget_single_view
+    partial:
+      title: Posted
+      data: ${{ workflow.stat_posted.return }}
+      decimal_places: 0
+
+  - name: Widget - Located
+    id: widget_located
+    task: create_single_value_widget_single_view
+    partial:
+      title: Located
+      data: ${{ workflow.stat_located.return }}
+      decimal_places: 0
+
+  - name: Widget - Photo Skipped
+    id: widget_photo_skipped
+    task: create_single_value_widget_single_view
+    partial:
+      title: Duplicate
+      data: ${{ workflow.stat_photo_skipped.return }}
+      decimal_places: 0
+
+  - name: Widget - Photo Failed
+    id: widget_photo_failed
+    task: create_single_value_widget_single_view
+    partial:
+      title: Rejected
+      data: ${{ workflow.stat_photo_failed.return }}
+      decimal_places: 0
+
+  # --- Map + table widgets ----------------------------------------------------
+  - name: Map Widget
+    id: map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: Mission Map
+      data: ${{ workflow.mission_map_url.return }}
+
+  - name: Flight Table Widget
+    id: flight_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: Flight Status
+      data: ${{ workflow.flight_table_url.return }}
+
+  - name: Photo Table Widget
+    id: photo_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: Photo Status
+      data: ${{ workflow.photo_table_url.return }}
+
+  # --- Dashboard --------------------------------------------------------------
+  - name: Dashboard
+    id: dashboard
+    task: gather_dashboard
+    partial:
+      time_range: ~
+      details: ${{ workflow.workflow_details.return }}
+      widgets:
+        - ${{ workflow.widget_ingested.return }}
+        - ${{ workflow.widget_skipped.return }}
+        - ${{ workflow.widget_failed.return }}
+        - ${{ workflow.widget_flight_time.return }}
+        - ${{ workflow.widget_distance.return }}
+        - ${{ workflow.widget_aircraft.return }}
+        - ${{ workflow.widget_posted.return }}
+        - ${{ workflow.widget_located.return }}
+        - ${{ workflow.widget_photo_skipped.return }}
+        - ${{ workflow.widget_photo_failed.return }}
+        - ${{ workflow.map_widget.return }}
+        - ${{ workflow.flight_table_widget.return }}
+        - ${{ workflow.photo_table_widget.return }}

@@ -1,0 +1,267 @@
+{
+  "properties": {
+    "workflow_details": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Workflow Name",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Workflow Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "description": "Add information that will help to differentiate this workflow from another.",
+      "title": "Workflow Details"
+    },
+    "er_client_name": {
+      "additionalProperties": false,
+      "properties": {
+        "data_source": {
+          "$ref": "#/$defs/EarthRangerConnection",
+          "title": "",
+          "description": "Select one of your configured data sources."
+        }
+      },
+      "required": [
+        "data_source"
+      ],
+      "type": "object",
+      "title": "Data Source"
+    },
+    "input_folder": {
+      "additionalProperties": false,
+      "properties": {
+        "folder_path": {
+          "default": "",
+          "title": "Folder Path",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Full path to the folder of DJI .txt flight logs (blank = skip flight-log ingestion). Copy the logs folder off your DJI controller via USB and paste the path here.",
+      "required": [],
+      "title": "Flight Logs Folder"
+    },
+    "photos_folder": {
+      "additionalProperties": false,
+      "properties": {
+        "folder_path": {
+          "default": "",
+          "title": "Folder Path",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Full path to the folder of drone photos (.jpg) copied from the aircraft SD card (blank = skip imagery). Photos must retain their original camera metadata.",
+      "required": [],
+      "title": "Photos Folder"
+    },
+    "dji_api_key": {
+      "additionalProperties": false,
+      "properties": {
+        "dji_api_key": {
+          "default": "",
+          "title": "Dji Api Key",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Your DJI developer key, used to decrypt .txt flight logs (only needed when a Flight Logs Folder is set). Get one free at developer.dji.com (create an Open API app, activate via email, copy the ApiKey).",
+      "required": [],
+      "title": "DJI API Key"
+    },
+    "event_type_name": {
+      "additionalProperties": false,
+      "properties": {
+        "event_type_name": {
+          "default": "uas_flight_folio",
+          "title": "Event Type Name",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "The slug of your Flight Folio event type in EarthRanger. Blank = tracking-only mode (GPS tracks posted, no Flight Folio events).",
+      "required": [],
+      "title": "Flight Folio Event Type"
+    },
+    "aircraft_identity": {
+      "additionalProperties": false,
+      "properties": {
+        "registration": {
+          "default": "",
+          "title": "Registration",
+          "type": "string"
+        },
+        "subject_type": {
+          "default": "aircraft",
+          "title": "Subject Type",
+          "type": "string"
+        },
+        "subject_subtype": {
+          "default": "drone_quadcopter",
+          "title": "Subject Subtype",
+          "type": "string"
+        },
+        "source_type": {
+          "default": "tracking-device",
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Identifies the drone as an EarthRanger Subject by its serial number. The Subject and Source are created automatically if absent; these fields set their type/subtype. Only used when a Flight Logs Folder is set.",
+      "required": [],
+      "title": "Aircraft Identity"
+    },
+    "decimation_rate": {
+      "additionalProperties": false,
+      "properties": {
+        "rate_hz": {
+          "default": 1,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Rate Hz",
+          "type": "integer"
+        }
+      },
+      "type": "object",
+      "description": "How many GPS fixes per second to post to EarthRanger from flight logs. DJI logs at ~10 Hz; the default 1 Hz gives smooth tracks with 10x data reduction. Performance stats always use full-resolution data.",
+      "required": [],
+      "title": "Track Decimation Rate"
+    },
+    "operational_defaults": {
+      "additionalProperties": false,
+      "properties": {
+        "nature_of_flight": {
+          "default": "",
+          "enum": [
+            "",
+            "vlos",
+            "r_vlos",
+            "e_vlos",
+            "b_vlos",
+            "d_vlos"
+          ],
+          "title": "Nature Of Flight",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Operational settings applied to every flight in this batch. Leave Nature of Flight blank for mixed batches \u2014 it can be set per-flight later in EarthRanger.",
+      "required": [],
+      "title": "Flight Defaults"
+    },
+    "imagery_event_type": {
+      "additionalProperties": false,
+      "properties": {
+        "event_type_name": {
+          "default": "uas_imagery",
+          "title": "Event Type Name",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "The slug of your UAS Imagery event type in EarthRanger. Blank = preview mode (photos geolocated and shown on the map, nothing posted).",
+      "required": [],
+      "title": "Imagery Event Type"
+    },
+    "dem_path": {
+      "additionalProperties": false,
+      "properties": {
+        "dem_path": {
+          "default": "",
+          "title": "Dem Path",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "Optional path to a local DEM GeoTIFF (geographic lat/lon CRS) for the photo raycast. Leave blank to auto-download Copernicus GLO-30 for your photos' area \u2014 set a path only for offline use or to use your own elevation data.",
+      "required": [],
+      "title": "DEM File"
+    },
+    "time_defaults": {
+      "additionalProperties": false,
+      "properties": {
+        "utc_offset_hours": {
+          "default": 2.0,
+          "maximum": 14.0,
+          "minimum": -12.0,
+          "title": "Utc Offset Hours",
+          "type": "number"
+        }
+      },
+      "type": "object",
+      "description": "Fallback UTC offset for photo timestamps, used only when a photo lacks GPS time metadata (most drone photos carry GPS time and ignore this).",
+      "required": [],
+      "title": "Time Defaults"
+    },
+    "patrol_type": {
+      "additionalProperties": false,
+      "properties": {
+        "patrol_type": {
+          "default": "",
+          "title": "Patrol Type",
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "description": "The slug of an existing EarthRanger patrol type (blank = no patrols). Flights are filed as patrols of this type, and photos are linked to the patrol whose time range contains them.",
+      "required": [],
+      "title": "Patrol Type"
+    }
+  },
+  "$defs": {
+    "EarthRangerConnection": {
+      "properties": {
+        "name": {
+          "title": "Data Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "EarthRangerConnection",
+      "type": "object"
+    }
+  },
+  "uiSchema": {
+    "workflow_details": {
+      "ui:order": [
+        "name",
+        "description"
+      ]
+    },
+    "aircraft_identity": {
+      "ui:order": [
+        "registration",
+        "subject_type",
+        "subject_subtype",
+        "source_type"
+      ]
+    },
+    "ui:order": [
+      "workflow_details",
+      "er_client_name",
+      "input_folder",
+      "photos_folder",
+      "dji_api_key",
+      "event_type_name",
+      "aircraft_identity",
+      "decimation_rate",
+      "operational_defaults",
+      "imagery_event_type",
+      "dem_path",
+      "time_defaults",
+      "patrol_type"
+    ]
+  },
+  "additionalProperties": false
+}

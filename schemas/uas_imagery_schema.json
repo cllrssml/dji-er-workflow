@@ -1,0 +1,251 @@
+{
+  "json": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "photo_filename": {
+        "deprecated": false,
+        "title": "Photo Filename",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "taken_at_utc": {
+        "deprecated": false,
+        "title": "Taken At (UTC)",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "aircraft": {
+        "deprecated": false,
+        "title": "Aircraft",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "camera_lat": {
+        "deprecated": false,
+        "title": "Camera Latitude",
+        "description": "",
+        "type": "number"
+      },
+      "camera_lon": {
+        "deprecated": false,
+        "title": "Camera Longitude",
+        "description": "",
+        "type": "number"
+      },
+      "camera_alt_m": {
+        "deprecated": false,
+        "title": "Camera Altitude (m)",
+        "description": "",
+        "type": "number"
+      },
+      "gimbal_yaw_deg": {
+        "deprecated": false,
+        "title": "Gimbal Yaw (deg)",
+        "description": "",
+        "type": "number"
+      },
+      "gimbal_pitch_deg": {
+        "deprecated": false,
+        "title": "Gimbal Pitch (deg)",
+        "description": "",
+        "type": "number"
+      },
+      "target_elevation_m": {
+        "deprecated": false,
+        "title": "Target Elevation (m)",
+        "description": "",
+        "type": "number"
+      },
+      "slant_range_m": {
+        "deprecated": false,
+        "title": "Slant Range (m)",
+        "description": "",
+        "type": "number"
+      },
+      "method": {
+        "deprecated": false,
+        "title": "Geolocation Method",
+        "default": "",
+        "description": "",
+        "type": "string"
+      },
+      "description": {
+        "deprecated": false,
+        "title": "Description",
+        "default": "",
+        "description": "",
+        "type": "string"
+      }
+    },
+    "required": [],
+    "type": "object",
+    "unevaluatedProperties": false
+  },
+  "ui": {
+    "fields": {
+      "photo_filename": {
+        "conditionalDependents": [],
+        "parent": "section-1",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "taken_at_utc": {
+        "conditionalDependents": [],
+        "parent": "section-1",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "aircraft": {
+        "conditionalDependents": [],
+        "parent": "section-1",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "camera_lat": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "camera_lon": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "camera_alt_m": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "gimbal_yaw_deg": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "gimbal_pitch_deg": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "target_elevation_m": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "slant_range_m": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "NUMERIC",
+        "placeholder": ""
+      },
+      "method": {
+        "conditionalDependents": [],
+        "parent": "section-2",
+        "type": "TEXT",
+        "inputType": "SHORT_TEXT",
+        "placeholder": ""
+      },
+      "description": {
+        "conditionalDependents": [],
+        "parent": "section-3",
+        "type": "TEXT",
+        "inputType": "LONG_TEXT",
+        "placeholder": ""
+      }
+    },
+    "headers": {},
+    "order": [
+      "section-1",
+      "section-2",
+      "section-3"
+    ],
+    "sections": {
+      "section-1": {
+        "columns": 1,
+        "conditions": [],
+        "isActive": true,
+        "label": "Photo \u2014 auto-populated",
+        "leftColumn": [
+          {
+            "name": "photo_filename",
+            "type": "field"
+          },
+          {
+            "name": "taken_at_utc",
+            "type": "field"
+          },
+          {
+            "name": "aircraft",
+            "type": "field"
+          }
+        ],
+        "rightColumn": []
+      },
+      "section-2": {
+        "columns": 1,
+        "conditions": [],
+        "isActive": true,
+        "label": "Geolocation \u2014 auto-populated (event location is the ground point the camera was aimed at)",
+        "leftColumn": [
+          {
+            "name": "camera_lat",
+            "type": "field"
+          },
+          {
+            "name": "camera_lon",
+            "type": "field"
+          },
+          {
+            "name": "camera_alt_m",
+            "type": "field"
+          },
+          {
+            "name": "gimbal_yaw_deg",
+            "type": "field"
+          },
+          {
+            "name": "gimbal_pitch_deg",
+            "type": "field"
+          },
+          {
+            "name": "target_elevation_m",
+            "type": "field"
+          },
+          {
+            "name": "slant_range_m",
+            "type": "field"
+          },
+          {
+            "name": "method",
+            "type": "field"
+          }
+        ],
+        "rightColumn": []
+      },
+      "section-3": {
+        "columns": 1,
+        "conditions": [],
+        "isActive": true,
+        "label": "Assessment \u2014 complete after reviewing the photo",
+        "leftColumn": [
+          {
+            "name": "description",
+            "type": "field"
+          }
+        ],
+        "rightColumn": []
+      }
+    }
+  }
+}
