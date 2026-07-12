@@ -204,6 +204,7 @@ workflow:
         - Time (UTC)
         - Distance from drone (m)
         - Ground elevation (m)
+        - Confidence
       legend:
         labels:
           - "Target — where the camera was aimed"
@@ -310,6 +311,7 @@ workflow:
         - target_lon
         - slant_range_m
         - camera_alt_m
+        - confidence
         - patrol
         - error
 

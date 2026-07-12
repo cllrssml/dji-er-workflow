@@ -92,9 +92,16 @@ _PHOTO_RESULTS_COLUMNS = [
     "target_lon",
     "slant_range_m",
     "camera_alt_m",
+    "confidence",
     "patrol",
     "error",
 ]
+
+# A geolocation is flagged "low" when the camera was within this many degrees of
+# level, or the target lies beyond this slant range — shallow, grazing shots put
+# the target far away and a small compass/pitch error swings it a long way.
+_LOW_CONF_PITCH_DEG = 5.0
+_LOW_CONF_SLANT_M = 1200.0
 
 _DJI_PROVIDER_KEY = "dji_rc_pro"
 
@@ -168,6 +175,7 @@ def _empty_targets_gdf() -> gpd.GeoDataFrame:
             "Time (UTC)": pd.Series(dtype=str),
             "Distance from drone (m)": pd.Series(dtype=float),
             "Ground elevation (m)": pd.Series(dtype=float),
+            "Confidence": pd.Series(dtype=str),
         },
         geometry=gpd.GeoSeries([], crs="EPSG:4326"),
     )
@@ -843,11 +851,17 @@ def _run_photos(
                     pose.gimbal_yaw_deg, pose.gimbal_pitch_deg,
                     dem, max_range_m=_MAX_RANGE_M,
                 )
+                low_conf = (
+                    abs(pose.gimbal_pitch_deg) < _LOW_CONF_PITCH_DEG
+                    or target.slant_range_m > _LOW_CONF_SLANT_M
+                )
+                confidence = "low" if low_conf else "ok"
                 row.update({
                     "target_lat":    round(target.lat, 6),
                     "target_lon":    round(target.lon, 6),
                     "slant_range_m": round(target.slant_range_m, 1),
                     "camera_alt_m":  round(target.camera_alt_m, 1),
+                    "confidence":    confidence,
                 })
                 aircraft = f"{pose.make} {pose.model}".strip()
                 out["target_rows"].append({
@@ -856,6 +870,7 @@ def _run_photos(
                     "Time (UTC)": taken_at.isoformat(),
                     "Distance from drone (m)": round(target.slant_range_m, 1),
                     "Ground elevation (m)": round(target.elevation_m, 1),
+                    "Confidence": confidence,
                 })
                 out["drone_rows"].append({
                     "geometry": Point(pose.lon, pose.lat),
@@ -947,7 +962,12 @@ def _run_photos(
                         "gimbal_pitch_deg":   pose.gimbal_pitch_deg,
                         "target_elevation_m": round(target.elevation_m, 1),
                         "slant_range_m":      round(target.slant_range_m, 1),
-                        "method":             "terrain raycast (centre of frame)",
+                        "confidence":         confidence,
+                        "method": (
+                            "terrain raycast (centre of frame)"
+                            + (" — LOW CONFIDENCE: shallow angle / long slant range, "
+                               "target position is approximate" if low_conf else "")
+                        ),
                     },
                 }
                 if patrol_segment_id:

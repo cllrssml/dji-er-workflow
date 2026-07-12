@@ -388,6 +388,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "Time (UTC)",
                 "Distance from drone (m)",
                 "Ground elevation (m)",
+                "Confidence",
             ],
             legend={
                 "labels": ["Target — where the camera was aimed"],
@@ -535,6 +536,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "target_lon",
                 "slant_range_m",
                 "camera_alt_m",
+                "confidence",
                 "patrol",
                 "error",
             ],
