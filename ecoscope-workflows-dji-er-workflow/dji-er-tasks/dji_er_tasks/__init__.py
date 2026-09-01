@@ -224,6 +224,51 @@ def _datetime_from_filename(filepath: Path) -> datetime | None:
         return None
 
 
+MIN_FLIGHT_YEAR = 2015
+
+
+def _max_flight_year() -> int:
+    """Upper sanity bound for a flight timestamp: DJI logs cannot be from the future."""
+    return datetime.now(timezone.utc).year + 1
+
+
+def resolve_takeoff_dt(frames, takeoff_idx: int, filepath: Path) -> datetime:
+    """Takeoff time for a DJI log, guarded against corrupt frame timestamps.
+
+    A drone whose GPS has not locked writes garbage into `custom.dateTime`, and
+    that garbage lands in ANY year - 1970 and 2099 are equally common. Both ends
+    must be rejected: an unbounded lower-only check lets a future date through
+    and it becomes the flight_key, which is how CFW ended up with flights filed
+    in 2027-2099.
+
+    Order of preference:
+      1. the takeoff frame's own timestamp, if sane;
+      2. the first airborne frame at or after takeoff with a sane timestamp;
+      3. the filename. NOTE the RC records LOCAL time in the filename and we
+         store it labelled UTC, so a fallback flight is offset by the operator's
+         UTC offset (2 h in SAST). A 2 h error beats a 70-year one.
+    """
+    min_year, max_year = MIN_FLIGHT_YEAR, _max_flight_year()
+
+    def sane(dt: datetime) -> bool:
+        return min_year <= dt.year <= max_year
+
+    takeoff_dt = _parse_dt(frames[takeoff_idx]["custom"]["dateTime"])
+    if sane(takeoff_dt):
+        return takeoff_dt
+
+    for f in frames[takeoff_idx:]:
+        try:
+            dt = _parse_dt(f["custom"]["dateTime"])
+        except Exception:
+            continue
+        if sane(dt) and not f["osd"]["isOnGround"]:
+            return dt
+
+    fallback = _datetime_from_filename(filepath)
+    return fallback if fallback is not None else takeoff_dt
+
+
 def _in_flight_window(dt_str: str, window_start: datetime, window_end: datetime) -> bool:
     """True if dt_str parses to a datetime within the flight window."""
     try:
@@ -512,26 +557,9 @@ def _run_flights(
                  if not f["osd"]["isOnGround"] and f["osd"]["isMotorOn"]), 0,
             )
 
-            takeoff_dt = _parse_dt(frames[takeoff_idx]["custom"]["dateTime"])
+            takeoff_dt = resolve_takeoff_dt(frames, takeoff_idx, filepath)
             landing_dt = _parse_dt(frames[landing_idx]["custom"]["dateTime"])
-
-            # Guard: garbage (pre-GPS-lock / future) timestamps on the takeoff frame.
-            _MIN_YEAR = 2015
-            _MAX_YEAR = datetime.now(timezone.utc).year + 1
-            if takeoff_dt.year < _MIN_YEAR or takeoff_dt.year > _MAX_YEAR:
-                for f in frames[takeoff_idx:]:
-                    try:
-                        dt = _parse_dt(f["custom"]["dateTime"])
-                        if dt.year >= _MIN_YEAR and not f["osd"]["isOnGround"]:
-                            takeoff_dt = dt
-                            break
-                    except Exception:
-                        continue
-            if takeoff_dt.year < _MIN_YEAR:
-                fallback = _datetime_from_filename(filepath)
-                if fallback is not None:
-                    takeoff_dt = fallback
-            if landing_dt.year < _MIN_YEAR or landing_dt.year > _MAX_YEAR:
+            if not (MIN_FLIGHT_YEAR <= landing_dt.year <= _max_flight_year()):
                 landing_dt = takeoff_dt
 
             _win_margin = timedelta(minutes=5)
