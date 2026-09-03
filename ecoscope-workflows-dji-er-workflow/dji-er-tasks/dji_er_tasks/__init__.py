@@ -232,6 +232,27 @@ def _max_flight_year() -> int:
     return datetime.now(timezone.utc).year + 1
 
 
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+
+
+def _event_id(row: Any) -> str | None:
+    """Event UUID for one row of an ecoscope get_events GeoDataFrame.
+
+    ecoscope's ERClient.get_events does `set_index("id")`, so there is no "id"
+    column and `row.get("id")` returns None -> the caller then built the URL
+    "activity/event/None" and ER 404'd. The id is the row's index label.
+
+    The index label is only trusted when it is UUID-shaped: on a frame that was
+    never re-indexed the label is a positional integer, which would otherwise be
+    returned in preference to a perfectly good "id" column.
+    """
+    from_col = row.get("id")
+    if from_col is not None and str(from_col) not in ("", "None", "nan"):
+        return str(from_col)
+    label = getattr(row, "name", None)
+    return str(label) if label is not None and _UUID_RE.match(str(label)) else None
+
+
 def resolve_takeoff_dt(frames, takeoff_idx: int, filepath: Path) -> datetime:
     """Takeoff time for a DJI log, guarded against corrupt frame timestamps.
 
@@ -712,7 +733,7 @@ def _run_flights(
                             ev_time = _parse_dt(str(ev.get("time") or ""))
                             if abs((ev_time - takeoff_dt).total_seconds()) <= 10:
                                 has_event = True
-                                matched_event_id = str(ev.get("id"))
+                                matched_event_id = _event_id(ev)
                                 break
                         except Exception:
                             continue
