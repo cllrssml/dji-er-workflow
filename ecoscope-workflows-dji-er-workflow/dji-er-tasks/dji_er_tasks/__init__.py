@@ -224,14 +224,6 @@ def _datetime_from_filename(filepath: Path) -> datetime | None:
         return None
 
 
-MIN_FLIGHT_YEAR = 2015
-
-
-def _max_flight_year() -> int:
-    """Upper sanity bound for a flight timestamp: DJI logs cannot be from the future."""
-    return datetime.now(timezone.utc).year + 1
-
-
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
 
@@ -253,49 +245,47 @@ def _event_id(row: Any) -> str | None:
     return str(label) if label is not None and _UUID_RE.match(str(label)) else None
 
 
-def resolve_takeoff_dt(frames, takeoff_idx: int, filepath: Path) -> datetime:
-    """Takeoff time for a DJI log, guarded against corrupt frame timestamps.
+RC_UTC_OFFSET_H = 2.0  # the RC names logs in LOCAL time; default = SAST (UTC+2)
+_CLOCK_AGREE = timedelta(minutes=10)
 
-    A drone whose GPS has not locked writes garbage into `custom.dateTime`, and
-    that garbage lands in ANY year - 1970 and 2099 are equally common. Both ends
-    must be rejected: an unbounded lower-only check lets a future date through
-    and it becomes the flight_key, which is how CFW ended up with flights filed
-    in 2027-2099.
 
-    Order of preference:
-      1. the takeoff frame's own timestamp, if sane;
-      2. the first airborne frame at or after takeoff with a sane timestamp;
-      3. the filename. NOTE the RC records LOCAL time in the filename and we
-         store it labelled UTC, so a fallback flight is offset by the operator's
-         UTC offset (2 h in SAST). A 2 h error beats a 70-year one.
+def resolve_frame_clock(frames, filepath: Path, rc_utc_offset_h: float = RC_UTC_OFFSET_H) -> datetime | None:
+    """UTC instant of flyTime 0, so that a frame's time is clock + osd.flyTime.
+
+    Never trust a single frame's `custom.dateTime`. On DJI Fly 46 logs the decoded
+    value is garbage on most frames - random instants from 1970 to 2099, many of
+    them plausible years - interleaved with the correct time. `osd.flyTime` is a
+    clean monotonic session clock. Each frame with a readable dateTime votes for
+    `dateTime - flyTime`; the votes that agree with the filename (local time, so
+    minus the RC's UTC offset) are the true clock and their median is returned.
+    With no agreeing vote the filename itself is the clock (log start ~ flyTime 0).
+    Without a parseable filename the largest cluster of votes wins.
     """
-    min_year, max_year = MIN_FLIGHT_YEAR, _max_flight_year()
-
-    def sane(dt: datetime) -> bool:
-        return min_year <= dt.year <= max_year
-
-    takeoff_dt = _parse_dt(frames[takeoff_idx]["custom"]["dateTime"])
-    if sane(takeoff_dt):
-        return takeoff_dt
-
-    for f in frames[takeoff_idx:]:
+    votes = []
+    for f in frames:
         try:
             dt = _parse_dt(f["custom"]["dateTime"])
+            votes.append(dt - timedelta(seconds=float(f["osd"]["flyTime"])))
         except Exception:
             continue
-        if sane(dt) and not f["osd"]["isOnGround"]:
-            return dt
 
-    fallback = _datetime_from_filename(filepath)
-    return fallback if fallback is not None else takeoff_dt
+    name_dt = _datetime_from_filename(filepath)
+    anchor = name_dt - timedelta(hours=rc_utc_offset_h) if name_dt else None
 
+    if anchor is None:
+        if not votes:
+            return None
+        votes.sort()
+        best, lo = [], 0
+        for hi in range(len(votes)):
+            while votes[hi] - votes[lo] > timedelta(minutes=2):
+                lo += 1
+            if hi - lo + 1 > len(best):
+                best = votes[lo:hi + 1]
+        return best[len(best) // 2]
 
-def _in_flight_window(dt_str: str, window_start: datetime, window_end: datetime) -> bool:
-    """True if dt_str parses to a datetime within the flight window."""
-    try:
-        return window_start <= _parse_dt(dt_str) <= window_end
-    except Exception:
-        return False
+    agree = sorted(v for v in votes if abs(v - anchor) <= _CLOCK_AGREE)
+    return agree[len(agree) // 2] if agree else anchor
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -578,14 +568,17 @@ def _run_flights(
                  if not f["osd"]["isOnGround"] and f["osd"]["isMotorOn"]), 0,
             )
 
-            takeoff_dt = resolve_takeoff_dt(frames, takeoff_idx, filepath)
-            landing_dt = _parse_dt(frames[landing_idx]["custom"]["dateTime"])
-            if not (MIN_FLIGHT_YEAR <= landing_dt.year <= _max_flight_year()):
-                landing_dt = takeoff_dt
+            clock = resolve_frame_clock(frames, filepath)
+            if clock is None:
+                raise ValueError("No usable timestamp in log frames or filename.")
 
-            _win_margin = timedelta(minutes=5)
-            _win_start = takeoff_dt - _win_margin
-            _win_end = landing_dt + _win_margin
+            def _frame_dt(f) -> datetime:
+                return clock + timedelta(seconds=float(f["osd"]["flyTime"]))
+
+            takeoff_dt = _frame_dt(frames[takeoff_idx])
+            landing_dt = _frame_dt(frames[landing_idx])
+            if landing_dt <= takeoff_dt:
+                landing_dt = takeoff_dt + timedelta(seconds=max(float(log_details["totalTime"]), 1.0))
 
             battery_pct_takeoff = int(frames[takeoff_idx]["battery"]["chargeLevel"])
             battery_pct_landing = int(frames[landing_idx]["battery"]["chargeLevel"])
@@ -615,7 +608,6 @@ def _run_flights(
                     (f["osd"]["latitude"], f["osd"]["longitude"])
                     for f in frames
                     if f["osd"]["latitude"] != 0.0 and f["osd"]["longitude"] != 0.0
-                    and _in_flight_window(f["custom"]["dateTime"], _win_start, _win_end)
                 ]
                 max_dist_m = max(
                     (_haversine_m(ref_lat, ref_lon, lat, lon) for lat, lon in valid_pts),
@@ -844,13 +836,12 @@ def _run_flights(
                         f for f in frames_dec
                         if f["osd"]["latitude"] != 0.0 and f["osd"]["longitude"] != 0.0
                         and not f["osd"]["isOnGround"]
-                        and _in_flight_window(f["custom"]["dateTime"], _win_start, _win_end)
                     ]
                     if airborne_all:
                         obs_gdf = gpd.GeoDataFrame(
                             {
                                 "source": [source_id] * len(airborne_all),
-                                "recorded_at": [f["custom"]["dateTime"] for f in airborne_all],
+                                "recorded_at": [_frame_dt(f).isoformat() for f in airborne_all],
                                 "device_status_properties": [
                                     {"altitude": f["osd"]["height"]} for f in airborne_all
                                 ],
