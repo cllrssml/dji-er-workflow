@@ -540,10 +540,17 @@ def _run_flights(
             # Decrypt + parse via dji-log (JSON to stdout, KML to tmp file).
             with tempfile.TemporaryDirectory() as tmpdir:
                 kml_tmp = Path(tmpdir) / "flight.kml"
-                result = subprocess.run(
-                    [binary, str(filepath), "--api-key", dji_api_key, "--kml", str(kml_tmp)],
-                    capture_output=True, encoding="utf-8", check=True, timeout=120,
-                )
+                try:
+                    result = subprocess.run(
+                        [binary, str(filepath), "--api-key", dji_api_key, "--kml", str(kml_tmp)],
+                        capture_output=True, encoding="utf-8", check=True, timeout=120,
+                    )
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                    # The default message echoes argv, which contains the API key.
+                    detail = (getattr(exc, "stderr", "") or "").strip().splitlines()[-1:]
+                    code = getattr(exc, "returncode", "timeout")
+                    msg = f"dji-log decoder failed (exit {code})" + (f": {detail[0]}" if detail else "")
+                    raise RuntimeError(msg.replace(dji_api_key, "<DJI_API_KEY>")) from None
                 flight_data = json.loads(result.stdout)
                 kml_text = kml_tmp.read_text(encoding="utf-8") if kml_tmp.exists() else ""
 
